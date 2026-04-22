@@ -1,0 +1,86 @@
+{
+  "devices": [
+    {
+      "id": "aqara_cloud_device",
+      "name": "Aqara Cloud Device",
+      "description": "Aqara device synchronized through the Aqara Open API.",
+      "capabilities": [
+        "temperature_c",
+        "humidity_percent",
+        "pressure_hpa",
+        "battery_percent",
+        "battery_low",
+        "illuminance_lux",
+        "motion_detected",
+        "presence_detected",
+        "person_detected",
+        "audio_detected",
+        "doorbell_pressed",
+        "contact_open",
+        "leak_detected",
+        "smoke_alarm",
+        "gas_alarm",
+        "co2_ppm",
+        "voc_ppb",
+        "pm25_ugm3",
+        "power_w",
+        "energy_kwh",
+        "voltage_v",
+        "current_a",
+        "frequency_hz",
+        "power_factor",
+        "switch_on",
+        "brightness_percent",
+        "cover_position",
+        "locked",
+        "privacy_mode",
+        "recording_enabled",
+        "tamper_detected",
+        "lock_jammed",
+        "connected",
+        "refresh"
+      ],
+      "intents": [
+        {
+          "id": "environment_monitoring",
+          "label": "Environment monitoring",
+          "description": "Track Aqara climate, air quality, motion, contact, and safety data from cloud-connected devices."
+        },
+        {
+          "id": "device_control",
+          "label": "Device control",
+          "description": "Trigger safe first-pass commands for switches and cover-style devices when Aqara exposes writable resources."
+        }
+      ],
+      "conditions": [
+        {
+          "id": "metric_above",
+          "label": "Metric above threshold",
+          "type": "number",
+          "params": [
+            {"name": "metric", "label": "Metric", "type": "enum", "required": true, "options": ["temperature_c", "humidity_percent", "pressure_hpa", "battery_percent", "illuminance_lux", "co2_ppm", "voc_ppb", "pm25_ugm3", "power_w", "energy_kwh", "voltage_v", "current_a", "frequency_hz", "power_factor"]},
+            {"name": "value", "label": "Threshold", "type": "number", "required": true}
+          ]
+        },
+        {
+          "id": "metric_below",
+          "label": "Metric below threshold",
+          "type": "number",
+          "params": [
+            {"name": "metric", "label": "Metric", "type": "enum", "required": true, "options": ["temperature_c", "humidity_percent", "pressure_hpa", "battery_percent", "illuminance_lux", "co2_ppm", "voc_ppb", "pm25_ugm3", "power_w", "energy_kwh", "voltage_v", "current_a", "frequency_hz", "power_factor"]},
+            {"name": "value", "label": "Threshold", "type": "number", "required": true}
+          ]
+        }
+      ],
+      "actions": [
+        {"id": "refresh", "label": "Refresh latest state"},
+        {"id": "turn_on", "label": "Turn on"},
+        {"id": "turn_off", "label": "Turn off"},
+        {"id": "open", "label": "Open"},
+        {"id": "close", "label": "Close"},
+        {"id": "set_position", "label": "Set position"},
+        {"id": "set_brightness", "label": "Set brightness"}
+      ]
+    }
+  ]
+}
