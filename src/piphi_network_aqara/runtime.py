@@ -29,6 +29,7 @@ from piphi_runtime_kit_python import (
     build_local_event_record,
     create_runtime_starter,
     create_tracked_task,
+    resolve_core_base_url,
     schedule_event_delivery,
     schedule_telemetry_delivery,
     validate_typed_configs,
@@ -60,6 +61,7 @@ starter = create_runtime_starter(
     integration_id=INTEGRATION_ID,
     integration_name=INTEGRATION_NAME,
     version=INTEGRATION_VERSION,
+    core_base_url=resolve_core_base_url("http://127.0.0.1:31419"),
 )
 runtime = starter.runtime
 registry = starter.registry
@@ -1216,10 +1218,7 @@ async def config(payload: AqaraCloudConfig, request: Request) -> RuntimeConfigAp
     )
 
 
-@router.post("/configs/sync")
-@router.post("/config/sync")
-async def configs_sync(payload: RuntimeConfigSnapshot, request: Request) -> RuntimeConfigSyncResponse:
-    sync_runtime_auth_from_fastapi_payload(runtime, request, payload)
+async def apply_runtime_config_snapshot(payload: RuntimeConfigSnapshot) -> RuntimeConfigSyncResponse:
     typed_snapshot = payload.model_copy(
         update={
             "configs": validate_typed_configs(
@@ -1235,6 +1234,13 @@ async def configs_sync(payload: RuntimeConfigSnapshot, request: Request) -> Runt
         remove_config=remove_config,
         get_active_config_ids=registry.ids,
     )
+
+
+@router.post("/configs/sync")
+@router.post("/config/sync")
+async def configs_sync(payload: RuntimeConfigSnapshot, request: Request) -> RuntimeConfigSyncResponse:
+    sync_runtime_auth_from_fastapi_payload(runtime, request, payload)
+    return await apply_runtime_config_snapshot(payload)
 
 
 @router.post("/deconfigure")
