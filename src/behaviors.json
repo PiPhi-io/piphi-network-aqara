@@ -202,6 +202,9 @@
           },
           "ui": {
             "group": "do_this"
+          },
+          "safety": {
+            "riskLevel": "low"
           }
         },
         {
@@ -241,6 +244,9 @@
           },
           "ui": {
             "group": "do_this"
+          },
+          "safety": {
+            "riskLevel": "medium"
           }
         },
         {
@@ -280,6 +286,9 @@
           },
           "ui": {
             "group": "do_this"
+          },
+          "safety": {
+            "riskLevel": "medium"
           }
         },
         {
@@ -319,6 +328,9 @@
           },
           "ui": {
             "group": "do_this"
+          },
+          "safety": {
+            "riskLevel": "medium"
           }
         },
         {
@@ -358,6 +370,9 @@
           },
           "ui": {
             "group": "do_this"
+          },
+          "safety": {
+            "riskLevel": "medium"
           }
         },
         {
@@ -397,6 +412,9 @@
           },
           "ui": {
             "group": "do_this"
+          },
+          "safety": {
+            "riskLevel": "medium"
           }
         },
         {
@@ -436,6 +454,9 @@
           },
           "ui": {
             "group": "do_this"
+          },
+          "safety": {
+            "riskLevel": "medium"
           }
         }
       ],
@@ -616,5 +637,141 @@
       }
     }
   ],
-  "behaviorSchemaVersion": "integration.behaviors.v2"
+  "behaviorSchemaVersion": "integration.behaviors.v2",
+  "telemetry": {
+    "capabilityMappings": [
+      {
+        "nativeMetric": "audio_detected",
+        "capability": "sensor.audio_detected"
+      },
+      {
+        "nativeMetric": "battery_low",
+        "capability": "sensor.battery_low"
+      },
+      {
+        "nativeMetric": "battery_percent",
+        "capability": "sensor.battery_percent"
+      },
+      {
+        "nativeMetric": "brightness_percent",
+        "capability": "sensor.brightness_percent"
+      },
+      {
+        "nativeMetric": "co2_ppm",
+        "capability": "sensor.co2_ppm"
+      },
+      {
+        "nativeMetric": "connected",
+        "capability": "sensor.connected"
+      },
+      {
+        "nativeMetric": "contact_open",
+        "capability": "sensor.contact_open"
+      },
+      {
+        "nativeMetric": "cover_position",
+        "capability": "sensor.cover_position"
+      },
+      {
+        "nativeMetric": "current_a",
+        "capability": "sensor.current_a"
+      },
+      {
+        "nativeMetric": "doorbell_pressed",
+        "capability": "sensor.doorbell_pressed"
+      },
+      {
+        "nativeMetric": "energy_kwh",
+        "capability": "sensor.energy_kwh"
+      },
+      {
+        "nativeMetric": "frequency_hz",
+        "capability": "sensor.frequency_hz"
+      },
+      {
+        "nativeMetric": "gas_alarm",
+        "capability": "sensor.gas_alarm"
+      },
+      {
+        "nativeMetric": "humidity_percent",
+        "capability": "sensor.humidity_percent"
+      },
+      {
+        "nativeMetric": "illuminance_lux",
+        "capability": "sensor.illuminance_lux"
+      },
+      {
+        "nativeMetric": "leak_detected",
+        "capability": "sensor.leak_detected"
+      },
+      {
+        "nativeMetric": "lock_jammed",
+        "capability": "sensor.lock_jammed"
+      },
+      {
+        "nativeMetric": "locked",
+        "capability": "sensor.locked"
+      },
+      {
+        "nativeMetric": "motion_detected",
+        "capability": "sensor.motion_detected"
+      },
+      {
+        "nativeMetric": "person_detected",
+        "capability": "sensor.person_detected"
+      },
+      {
+        "nativeMetric": "pm25_ugm3",
+        "capability": "sensor.pm25_ugm3"
+      },
+      {
+        "nativeMetric": "power_factor",
+        "capability": "sensor.power_factor"
+      },
+      {
+        "nativeMetric": "power_w",
+        "capability": "sensor.power_w"
+      },
+      {
+        "nativeMetric": "presence_detected",
+        "capability": "sensor.presence_detected"
+      },
+      {
+        "nativeMetric": "pressure_hpa",
+        "capability": "sensor.pressure_hpa"
+      },
+      {
+        "nativeMetric": "privacy_mode",
+        "capability": "sensor.privacy_mode"
+      },
+      {
+        "nativeMetric": "recording_enabled",
+        "capability": "sensor.recording_enabled"
+      },
+      {
+        "nativeMetric": "smoke_alarm",
+        "capability": "sensor.smoke_alarm"
+      },
+      {
+        "nativeMetric": "switch_on",
+        "capability": "sensor.switch_on"
+      },
+      {
+        "nativeMetric": "tamper_detected",
+        "capability": "sensor.tamper_detected"
+      },
+      {
+        "nativeMetric": "temperature_c",
+        "capability": "sensor.temperature_c"
+      },
+      {
+        "nativeMetric": "voc_ppb",
+        "capability": "sensor.voc_ppb"
+      },
+      {
+        "nativeMetric": "voltage_v",
+        "capability": "sensor.voltage_v"
+      }
+    ]
+  }
 }
