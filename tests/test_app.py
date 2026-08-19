@@ -99,6 +99,66 @@ async def test_config_sync_builds_state_and_supports_turn_on(async_client, fake_
 
 
 @pytest.mark.asyncio
+async def test_command_replays_idempotency_key_without_repeating_device_effect(
+    async_client,
+    fake_cloud_client,
+) -> None:
+    fake_cloud_client.devices = {
+        "lumi.idempotency": AqaraCloudDevice(
+            did="lumi.idempotency",
+            name="Idempotent Plug",
+            model="lumi.plug.maus01",
+            state=1,
+        )
+    }
+    fake_cloud_client.resources_by_model = {
+        "lumi.plug.maus01": [
+            AqaraResourceInfo(
+                resource_id="4.1.85",
+                name="plug status",
+                description="plug status",
+                access=5,
+            )
+        ]
+    }
+    fake_cloud_client.values_by_did = {
+        "lumi.idempotency": [
+            AqaraResourceValue(
+                subject_id="lumi.idempotency",
+                resource_id="4.1.85",
+                value="0",
+                timestamp_ms=1710000000000,
+            )
+        ]
+    }
+    config_response = await async_client.post(
+        "/config",
+        json={
+            "id": "cfg-idempotency",
+            "region": "us",
+            "app_id": "app-id-1",
+            "key_id": "key-id-1",
+            "app_key": "app-key-1",
+            "access_token": "access-token-1",
+            "open_id": "open-id-1",
+            "did": "lumi.idempotency",
+        },
+    )
+    assert config_response.status_code == 200
+
+    headers = {"X-PiPhi-Idempotency-Key": "aqara-action-idempotency-1"}
+    payload = {"command": "turn_on", "entity_id": "device:cfg-idempotency"}
+    first = await async_client.post("/command", json=payload, headers=headers)
+    replay = await async_client.post("/command", json=payload, headers=headers)
+
+    assert first.status_code == 200
+    assert replay.status_code == 200
+    assert first.json()["replayed"] is False
+    assert replay.json()["replayed"] is True
+    assert fake_cloud_client.writes == [("lumi.idempotency", "4.1.85", "1")]
+
+
+@pytest.mark.asyncio
 async def test_config_sync_uses_model_registry_for_cover_position(async_client, fake_cloud_client) -> None:
     fake_cloud_client.devices = {
         "lumi.cover.1111": AqaraCloudDevice(

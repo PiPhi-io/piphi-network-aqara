@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -7,6 +8,11 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+
+os.environ.setdefault(
+    "PIPHI_AUTOMATION_LEDGER_PATH",
+    f"/tmp/piphi-aqara-automation-actions-{os.getpid()}.sqlite3",
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))

@@ -3,14 +3,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from collections import deque
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from piphi_runtime_kit_python import (
+    AutomationActionRequest,
+    AutomationActionResult,
+    AutomationRegistry,
     IntegrationCommandRequest,
     IntegrationDiscoveryRequest,
     IntegrationDiscoveryResponse,
@@ -22,6 +27,7 @@ from piphi_runtime_kit_python import (
     RuntimeConfigSyncResponse,
     RuntimeDiagnosticsResponse,
     RuntimeHealthResponse,
+    SQLiteAutomationIdempotencyStore,
     build_config_apply_response,
     build_config_remove_response,
     build_discovery_response,
@@ -34,7 +40,10 @@ from piphi_runtime_kit_python import (
     schedule_telemetry_delivery,
     validate_typed_configs,
 )
-from piphi_runtime_kit_python.fastapi import sync_runtime_auth_from_fastapi_payload
+from piphi_runtime_kit_python.fastapi import (
+    dispatch_automation_action_from_fastapi,
+    sync_runtime_auth_from_fastapi_payload,
+)
 from piphi_runtime_kit_python.runtime.errors import CoreDeliveryError
 
 from .cloud.client import (
@@ -70,6 +79,18 @@ event_client = starter.event_client
 config_sync = starter.config_sync
 cloud_client = AqaraCloudClient()
 router = APIRouter()
+AUTOMATION_COMMANDS = frozenset(
+    {"close", "open", "refresh", "set_brightness", "set_position", "turn_off", "turn_on"}
+)
+_automation_ledger_path = Path(
+    os.getenv(
+        "PIPHI_AUTOMATION_LEDGER_PATH",
+        "/.piphinetwork/automation-actions.sqlite3",
+    )
+)
+automation_registry = AutomationRegistry(
+    idempotency_store=SQLiteAutomationIdempotencyStore(_automation_ledger_path)
+)
 poll_tasks: dict[str, asyncio.Task[Any]] = {}
 poll_status: dict[str, dict[str, Any]] = {}
 processed_push_msg_ids: deque[str] = deque()
@@ -1474,10 +1495,10 @@ async def aqara_push(request: Request) -> dict[str, Any]:
     return {"status": "ok", "handled": handled, "duplicate": False, "message_type": event_type or msg_type or "unknown"}
 
 
-@router.post("/command")
-async def command(payload: IntegrationCommandRequest, request: Request) -> dict[str, Any]:
-    sync_runtime_auth_from_fastapi_payload(runtime, request, payload)
+def _resolve_command_config_id(payload: IntegrationCommandRequest) -> str:
     config_id = str(payload.args.get("config_id") or "").strip()
+    if not config_id:
+        config_id = str(payload.config_id or "").strip()
     if not config_id and payload.entity_id and payload.entity_id.startswith("device:"):
         config_id = payload.entity_id.split(":", 1)[1]
     if not config_id and payload.device_id:
@@ -1487,21 +1508,74 @@ async def command(payload: IntegrationCommandRequest, request: Request) -> dict[
                 break
     if not config_id:
         raise HTTPException(status_code=400, detail="Command must include config_id, entity_id, or device_id.")
+    return config_id
+
+
+def _validate_command_request(
+    payload: IntegrationCommandRequest,
+    config_id: str,
+) -> None:
     entry = registry.get(config_id)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"unknown config_id={config_id}")
     if payload.command == "refresh":
-        snapshot = await _read_and_store(config_id)
-        return {"status": "ok", "config_id": config_id, "sampled_at": snapshot["state"]["sampled_at"], "state": registry.state_snapshots.get(config_id, {}).get("state")}
+        return
+    if payload.command not in AUTOMATION_COMMANDS:
+        raise HTTPException(status_code=400, detail=f"Unsupported command: {payload.command}")
     binding = (entry.get("command_bindings") or {}).get(payload.command)
     if not binding:
         raise HTTPException(status_code=400, detail=f"Unsupported command: {payload.command}")
-    value = str(binding.get("value") or "")
     if binding.get("dynamic"):
         requested_value = payload.args.get("position") if payload.command == "set_position" else payload.args.get("value")
         if requested_value is None:
             raise HTTPException(status_code=400, detail=f"{payload.command} requires args.position or args.value.")
+
+
+async def _execute_registered_command(
+    action_request: AutomationActionRequest,
+) -> AutomationActionResult:
+    config_id = str(action_request.config_id or "").strip()
+    entry = registry.get(config_id)
+    if entry is None:
+        return AutomationActionResult.failure(
+            f"unknown config_id={config_id}",
+            metadata={"status_code": 404},
+        )
+
+    if action_request.command == "refresh":
+        try:
+            snapshot = await _read_and_store(config_id)
+        except HTTPException as exc:
+            return AutomationActionResult.failure(
+                str(exc.detail),
+                retryable=exc.status_code >= 500,
+                metadata={"status_code": exc.status_code},
+            )
+        return AutomationActionResult.success(
+            {
+                "status": "ok",
+                "config_id": config_id,
+                "sampled_at": snapshot["state"]["sampled_at"],
+                "state": registry.state_snapshots.get(config_id, {}).get("state"),
+            }
+        )
+
+    binding = (entry.get("command_bindings") or {}).get(action_request.command)
+    if not binding:
+        return AutomationActionResult.failure(
+            f"Unsupported command: {action_request.command}",
+            metadata={"status_code": 400},
+        )
+    value = str(binding.get("value") or "")
+    if binding.get("dynamic"):
+        requested_value = action_request.args.get("position") if action_request.command == "set_position" else action_request.args.get("value")
+        if requested_value is None:
+            return AutomationActionResult.failure(
+                f"{action_request.command} requires args.position or args.value.",
+                metadata={"status_code": 400},
+            )
         value = str(int(float(requested_value)))
+
     async def operation(credentials: AqaraCloudCredentials):
         await cloud_client.write_resource(
             credentials,
@@ -1513,5 +1587,47 @@ async def command(payload: IntegrationCommandRequest, request: Request) -> dict[
         await _call_with_entry_refresh(entry, operation)
         snapshot = await _read_and_store(config_id)
     except AqaraCloudError as exc:
-        _raise_http_for_cloud_error(exc)
-    return {"status": "ok", "config_id": config_id, "command": payload.command, "state": snapshot["state"]}
+        try:
+            _raise_http_for_cloud_error(exc)
+        except HTTPException as http_exc:
+            return AutomationActionResult.failure(
+                str(http_exc.detail),
+                retryable=http_exc.status_code >= 500 or http_exc.status_code == 429,
+                metadata={"status_code": http_exc.status_code},
+            )
+        return AutomationActionResult.failure(str(exc), metadata={"status_code": 500})
+    return AutomationActionResult.success(
+        {
+            "status": "ok",
+            "config_id": config_id,
+            "command": action_request.command,
+            "state": snapshot["state"],
+        }
+    )
+
+
+for _command_name in sorted(AUTOMATION_COMMANDS):
+    automation_registry.action(_command_name)(_execute_registered_command)
+
+
+@router.post("/command")
+async def command(payload: IntegrationCommandRequest, request: Request) -> dict[str, Any]:
+    sync_runtime_auth_from_fastapi_payload(runtime, request, payload)
+    config_id = _resolve_command_config_id(payload)
+    _validate_command_request(payload, config_id)
+    normalized_payload = {
+        **payload.model_dump(mode="python"),
+        "config_id": config_id,
+        "device_id": str((registry.get(config_id) or {}).get("did") or payload.device_id or "") or None,
+    }
+    result = await dispatch_automation_action_from_fastapi(
+        automation_registry,
+        request,
+        normalized_payload,
+    )
+    if not result.ok:
+        raise HTTPException(
+            status_code=int(result.metadata.get("status_code") or 503),
+            detail=result.error,
+        )
+    return {**result.result, "replayed": result.replayed}
