@@ -22,6 +22,39 @@ def test_manifest_and_behaviors_align() -> None:
     assert "stop" not in behavior_actions
 
 
+def test_manifest_declares_auditable_core_security_event_coverage() -> None:
+    root = Path(__file__).resolve().parents[1] / "src"
+    manifest = json.loads((root / "manifest.json").read_text())
+    security = manifest["security"]
+    mappings = security["event_mappings"]
+
+    assert security["contract_version"] == "1"
+    assert len({mapping["source_event_type"] for mapping in mappings}) == len(mappings)
+    assert all(mapping["device_models"] for mapping in mappings)
+    assert all(mapping["required_permissions"] for mapping in mappings)
+
+    implemented = {
+        mapping["source_event_type"]: mapping["canonical_event_type"]
+        for mapping in mappings
+        if mapping["status"] == "implemented"
+    }
+    assert implemented == {
+        "aqara.safety.smoke.detected": "safety_smoke_detected",
+        "aqara.safety.smoke.cleared": "safety_smoke_cleared",
+        "aqara.safety.leak.detected": "safety_leak_detected",
+        "aqara.safety.leak.cleared": "safety_leak_cleared",
+        "aqara.access.forced_open": "access_forced_open",
+        "aqara.access.forced_open.cleared": "access_forced_open_cleared",
+        "aqara.access.lock_jammed": "access_lock_jammed",
+        "aqara.access.lock_jam.cleared": "access_lock_jam_cleared",
+    }
+    assert {
+        mapping["source_event_type"]
+        for mapping in mappings
+        if mapping["status"] == "excluded"
+    } == {"aqara.safety.gas.detected", "aqara.safety.gas.cleared"}
+
+
 def test_automation_registry_matches_declared_behavior_commands() -> None:
     root = Path(__file__).resolve().parent.parent / "src"
     behaviors = json.loads((root / "behaviors.json").read_text())

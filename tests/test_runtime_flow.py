@@ -290,6 +290,160 @@ async def test_refresh_emits_camera_transition_events(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    (
+        "capability",
+        "model",
+        "resource_id",
+        "resource_name",
+        "detected_event",
+        "cleared_event",
+        "severity",
+    ),
+    (
+        (
+            "smoke_alarm",
+            "aqara.smoke.acn03",
+            "3.3.85",
+            "Smoke alarm",
+            "aqara.safety.smoke.detected",
+            "aqara.safety.smoke.cleared",
+            "critical",
+        ),
+        (
+            "leak_detected",
+            "aqara.water.wleak01",
+            "3.2.85",
+            "Water leak",
+            "aqara.safety.leak.detected",
+            "aqara.safety.leak.cleared",
+            "warning",
+        ),
+        (
+            "tamper_detected",
+            "aqara.lock.d200",
+            "6.2.85",
+            "Forced entry tamper alarm",
+            "aqara.access.forced_open",
+            "aqara.access.forced_open.cleared",
+            "warning",
+        ),
+        (
+            "lock_jammed",
+            "aqara.lock.d200",
+            "6.3.85",
+            "Lock jam alarm",
+            "aqara.access.lock_jammed",
+            "aqara.access.lock_jam.cleared",
+            "warning",
+        ),
+        (
+            "gas_alarm",
+            "aqara.gas.acn02",
+            "3.4.85",
+            "Natural gas alarm",
+            "aqara.safety.gas.detected",
+            "aqara.safety.gas.cleared",
+            "critical",
+        ),
+    ),
+)
+async def test_refresh_emits_security_transitions_without_initial_false_alarm(
+    async_client,
+    fake_cloud_client,
+    config_payload,
+    capability,
+    model,
+    resource_id,
+    resource_name,
+    detected_event,
+    cleared_event,
+    severity,
+) -> None:
+    device_id = f"test.{capability}"
+    config_id = f"cfg-{capability}"
+    fake_cloud_client.devices = {
+        device_id: AqaraCloudDevice(
+            did=device_id,
+            name=resource_name,
+            model=model,
+            state=1,
+        )
+    }
+    fake_cloud_client.resources_by_model = {
+        model: [
+            AqaraResourceInfo(
+                resource_id=resource_id,
+                name=resource_name,
+                description=resource_name,
+                access=3,
+            )
+        ]
+    }
+    fake_cloud_client.values_by_did = {
+        device_id: [
+            AqaraResourceValue(
+                subject_id=device_id,
+                resource_id=resource_id,
+                value="0",
+                timestamp_ms=1710000000000,
+            )
+        ]
+    }
+
+    response = await async_client.post(
+        "/config",
+        json=config_payload(
+            config_id=config_id,
+            device_id=device_id,
+            container_id=f"runtime-{capability}",
+            integration_id="aqara-open-api",
+            extra={
+                "region": "us",
+                "app_id": "app-id-1",
+                "key_id": "key-id-1",
+                "app_key": "app-key-1",
+                "access_token": "access-token-1",
+                "open_id": "open-id-1",
+                "did": device_id,
+            },
+        ),
+    )
+    assert response.status_code == 200
+
+    initial_events = (await async_client.get("/events")).json()["events"]
+    initial_types = {event.get("type") or event.get("event_type") for event in initial_events}
+    assert detected_event not in initial_types
+    assert cleared_event not in initial_types
+
+    for value, expected_event in (("1", detected_event), ("0", cleared_event)):
+        fake_cloud_client.values_by_did[device_id] = [
+            AqaraResourceValue(
+                subject_id=device_id,
+                resource_id=resource_id,
+                value=value,
+                timestamp_ms=1710000001000 + int(value),
+            )
+        ]
+        refresh_response = await async_client.post(
+            "/command",
+            json={"command": "refresh", "entity_id": f"device:{config_id}"},
+        )
+        assert refresh_response.status_code == 200
+
+        events = (await async_client.get("/events")).json()["events"]
+        event = next(
+            item
+            for item in events
+            if (item.get("type") or item.get("event_type")) == expected_event
+        )
+        assert event["severity"] == severity
+        assert event["payload"]["capability"] == capability
+        assert event["payload"]["previous_value"] is (value == "0")
+        assert event["payload"]["current_value"] is (value == "1")
+
+
+@pytest.mark.asyncio
 async def test_push_resource_report_updates_camera_state_and_events(
     async_client,
     fake_cloud_client,

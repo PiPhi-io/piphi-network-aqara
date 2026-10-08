@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from piphi_runtime_kit_python import (
@@ -72,6 +72,14 @@ starter = create_runtime_starter(
     version=INTEGRATION_VERSION,
     core_base_url=resolve_core_base_url("http://127.0.0.1:31419"),
 )
+
+
+async def _refresh_all_state() -> None:
+    for config_id in registry.ids():
+        await _read_and_store(config_id)
+
+
+starter.state.provide(_refresh_all_state, source=INTEGRATION_ID)
 runtime = starter.runtime
 registry = starter.registry
 telemetry_client = starter.telemetry_client
@@ -672,6 +680,61 @@ def _emit_camera_transition_events(
         )
 
 
+def _emit_security_transition_events(
+    *,
+    entry: dict[str, Any],
+    previous_state: dict[str, Any],
+    current_state: dict[str, Any],
+) -> None:
+    sampled_at = str(current_state.get("sampled_at") or "")
+    for capability, event_types, severity in (
+        (
+            "smoke_alarm",
+            ("aqara.safety.smoke.detected", "aqara.safety.smoke.cleared"),
+            "critical",
+        ),
+        (
+            "leak_detected",
+            ("aqara.safety.leak.detected", "aqara.safety.leak.cleared"),
+            "warning",
+        ),
+        (
+            "tamper_detected",
+            ("aqara.access.forced_open", "aqara.access.forced_open.cleared"),
+            "warning",
+        ),
+        (
+            "lock_jammed",
+            ("aqara.access.lock_jammed", "aqara.access.lock_jam.cleared"),
+            "warning",
+        ),
+        (
+            "gas_alarm",
+            ("aqara.safety.gas.detected", "aqara.safety.gas.cleared"),
+            "critical",
+        ),
+    ):
+        if capability not in previous_state or capability not in current_state:
+            continue
+        previous_value = previous_state.get(capability)
+        current_value = current_state.get(capability)
+        if (
+            previous_value == current_value
+            or not isinstance(previous_value, bool)
+            or not isinstance(current_value, bool)
+        ):
+            continue
+        _emit_transition_event(
+            entry=entry,
+            event_type=event_types[0] if current_value else event_types[1],
+            previous_value=previous_value,
+            current_value=current_value,
+            sampled_at=sampled_at or None,
+            capability=capability,
+            severity=severity,
+        )
+
+
 def _emit_device_attribute_event(
     *,
     entry: dict[str, Any],
@@ -710,6 +773,11 @@ def _persist_state(
     current_state = dict(state)
     if emit_camera_events and {"privacy_mode", "recording_enabled", "motion_detected", "person_detected", "audio_detected", "doorbell_pressed"} & set(current_state):
         _emit_camera_transition_events(entry=entry, previous_state=previous_state, current_state=current_state)
+    _emit_security_transition_events(
+        entry=entry,
+        previous_state=previous_state,
+        current_state=current_state,
+    )
     for resource_event in emit_resource_events or []:
         capability = str(resource_event.get("capability") or "").strip()
         if not capability:
@@ -1282,8 +1350,23 @@ async def entities() -> dict[str, Any]:
 
 
 @router.get("/state")
-async def state() -> dict[str, Any]:
-    return {"state": registry.state_snapshots}
+async def state(
+    refresh: bool = Query(default=False),
+    refresh_request_id: str | None = Query(default=None),
+) -> dict[str, Any]:
+    try:
+        state_payload = await starter.state.response(
+            refresh=refresh,
+            refresh_request_id=refresh_request_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        **state_payload,
+        # Keep the established public shape while the SDK-owned ``entries``
+        # field provides the normalized cross-integration representation.
+        "state": registry.state_snapshots,
+    }
 
 
 @router.get("/events", response_model=IntegrationEventListResponse)
