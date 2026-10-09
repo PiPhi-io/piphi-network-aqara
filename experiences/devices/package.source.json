@@ -3,7 +3,7 @@
   "identity": {
     "publisher_id": "io.piphi",
     "package_id": "aqara-devices",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "name": "Aqara Devices",
   "description": "Native read-only dashboard views for Aqara Devices.",

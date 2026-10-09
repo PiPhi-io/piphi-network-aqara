@@ -2,7 +2,7 @@
   "manifest_version": "1.0",
   "id": "aqara-open-api",
   "name": "Aqara (Open API)",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cloud integration for Aqara accounts using the Aqara Open API.",
   "maintainer": {
     "name": "PiPhi Network",
@@ -18,7 +18,7 @@
     "linux": {
       "type": "container",
       "container": {
-        "image": "piphinetwork/aqara-open-api:0.1.1",
+        "image": "piphinetwork/aqara-open-api:0.1.2",
         "ports": [
           {
             "container": 3671,
@@ -543,16 +543,116 @@
   "security": {
     "contract_version": "1",
     "event_mappings": [
-      {"source_event_type": "aqara.safety.smoke.detected", "canonical_event_type": "safety_smoke_detected", "status": "implemented", "device_models": ["aqara.smoke.acn03"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.safety.smoke.cleared", "canonical_event_type": "safety_smoke_cleared", "status": "implemented", "device_models": ["aqara.smoke.acn03"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.safety.leak.detected", "canonical_event_type": "safety_leak_detected", "status": "implemented", "device_models": ["aqara.water.wleak01"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.safety.leak.cleared", "canonical_event_type": "safety_leak_cleared", "status": "implemented", "device_models": ["aqara.water.wleak01"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.access.forced_open", "canonical_event_type": "access_forced_open", "status": "implemented", "device_models": ["aqara.lock.d200"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.access.forced_open.cleared", "canonical_event_type": "access_forced_open_cleared", "status": "implemented", "device_models": ["aqara.lock.d200"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.access.lock_jammed", "canonical_event_type": "access_lock_jammed", "status": "implemented", "device_models": ["aqara.lock.d200"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.access.lock_jam.cleared", "canonical_event_type": "access_lock_jam_cleared", "status": "implemented", "device_models": ["aqara.lock.d200"], "required_permissions": ["Aqara resource read"]},
-      {"source_event_type": "aqara.safety.gas.detected", "status": "excluded", "device_models": ["aqara.gas.acn02"], "required_permissions": ["Aqara resource read"], "notes": "Core contract version 1 has no natural-gas incident type; the runtime still emits a routine event."},
-      {"source_event_type": "aqara.safety.gas.cleared", "status": "excluded", "device_models": ["aqara.gas.acn02"], "required_permissions": ["Aqara resource read"], "notes": "Core contract version 1 has no natural-gas incident type; the runtime still emits a routine event."}
+      {
+        "source_event_type": "aqara.safety.smoke.detected",
+        "canonical_event_type": "safety_smoke_detected",
+        "status": "implemented",
+        "device_models": [
+          "aqara.smoke.acn03"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.safety.smoke.cleared",
+        "canonical_event_type": "safety_smoke_cleared",
+        "status": "implemented",
+        "device_models": [
+          "aqara.smoke.acn03"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.safety.leak.detected",
+        "canonical_event_type": "safety_leak_detected",
+        "status": "implemented",
+        "device_models": [
+          "aqara.water.wleak01"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.safety.leak.cleared",
+        "canonical_event_type": "safety_leak_cleared",
+        "status": "implemented",
+        "device_models": [
+          "aqara.water.wleak01"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.access.forced_open",
+        "canonical_event_type": "access_forced_open",
+        "status": "implemented",
+        "device_models": [
+          "aqara.lock.d200"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.access.forced_open.cleared",
+        "canonical_event_type": "access_forced_open_cleared",
+        "status": "implemented",
+        "device_models": [
+          "aqara.lock.d200"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.access.lock_jammed",
+        "canonical_event_type": "access_lock_jammed",
+        "status": "implemented",
+        "device_models": [
+          "aqara.lock.d200"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.access.lock_jam.cleared",
+        "canonical_event_type": "access_lock_jam_cleared",
+        "status": "implemented",
+        "device_models": [
+          "aqara.lock.d200"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ]
+      },
+      {
+        "source_event_type": "aqara.safety.gas.detected",
+        "status": "excluded",
+        "device_models": [
+          "aqara.gas.acn02"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ],
+        "notes": "Core contract version 1 has no natural-gas incident type; the runtime still emits a routine event."
+      },
+      {
+        "source_event_type": "aqara.safety.gas.cleared",
+        "status": "excluded",
+        "device_models": [
+          "aqara.gas.acn02"
+        ],
+        "required_permissions": [
+          "Aqara resource read"
+        ],
+        "notes": "Core contract version 1 has no natural-gas incident type; the runtime still emits a routine event."
+      }
     ]
   },
   "entities": [
@@ -599,7 +699,11 @@
   ],
   "ui": {
     "experience_packages": [
-      {"registry_id": "io.piphi.aqara-devices", "version_range": ">=0.1,<1", "auto_install": true}
+      {
+        "registry_id": "io.piphi.aqara-devices",
+        "version_range": ">=0.1,<1",
+        "auto_install": true
+      }
     ]
   }
 }
